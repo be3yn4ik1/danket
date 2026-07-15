@@ -252,3 +252,23 @@ function danket_objects_admin_columns_content($column, $post_id) {
         echo '—';
     }
 }
+
+add_filter('manage_edit-objects_sortable_columns', 'danket_objects_sortable_columns');
+function danket_objects_sortable_columns($columns) {
+    $columns['po_napravleniyu'] = 'po_napravleniyu';
+    $columns['po_tipu_obekta'] = 'po_tipu_obekta';
+    $columns['po_regionu'] = 'po_regionu';
+    return $columns;
+}
+
+add_action('pre_get_posts', 'danket_objects_sort_by_acf');
+function danket_objects_sort_by_acf($query) {
+    if (!is_admin() || !$query->is_main_query() || $query->get('post_type') !== 'objects') {
+        return;
+    }
+    $orderby = $query->get('orderby');
+    if (in_array($orderby, array('po_napravleniyu', 'po_tipu_obekta', 'po_regionu'), true)) {
+        $query->set('meta_key', $orderby);
+        $query->set('orderby', 'meta_value');
+    }
+}
