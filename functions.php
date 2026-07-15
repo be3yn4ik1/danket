@@ -212,12 +212,43 @@ function danket_render_object_card() {
             </div>
         </div>
         <div class="object-card__img-wrap">
-            <?php 
+            <?php
             if (has_post_thumbnail()) {
                 the_post_thumbnail('full', array('class' => 'object-card__img'));
-            } 
+            }
             ?>
         </div>
     </div>
     <?php
+}
+
+
+//**************Доп. колонки в админке для CPT "objects"
+add_filter('manage_edit-objects_columns', 'danket_objects_admin_columns');
+function danket_objects_admin_columns($columns) {
+    $new_columns = array();
+    foreach ($columns as $key => $label) {
+        $new_columns[$key] = $label;
+        if ($key === 'title') {
+            $new_columns['po_napravleniyu'] = 'По направлению';
+            $new_columns['po_tipu_obekta'] = 'По типу объекта';
+            $new_columns['po_regionu'] = 'По региону';
+        }
+    }
+    return $new_columns;
+}
+
+add_action('manage_objects_posts_custom_column', 'danket_objects_admin_columns_content', 10, 2);
+function danket_objects_admin_columns_content($column, $post_id) {
+    if (!in_array($column, array('po_napravleniyu', 'po_tipu_obekta', 'po_regionu'), true)) {
+        return;
+    }
+    $value = get_field($column, $post_id);
+    if (is_array($value)) {
+        echo esc_html(implode(', ', $value));
+    } elseif ($value) {
+        echo esc_html($value);
+    } else {
+        echo '—';
+    }
 }
