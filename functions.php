@@ -30,7 +30,10 @@ if ( ! function_exists( 'danket_plus_scripts' ) ) {
 	function danket_plus_scripts() {
 		wp_enqueue_style( 'danket-plus-styles', get_stylesheet_uri(), array(), '1.0.0' );
 		wp_enqueue_style( 'danket-plus-main-style', get_template_directory_uri() . '/assets/style.css', array(), '1.1.0' );
-		wp_enqueue_script( 'danket-plus-main-script', get_template_directory_uri() . '/assets/custom.js', array(), '1.1.0', true );
+		wp_enqueue_script( 'danket-plus-main-script', get_template_directory_uri() . '/assets/custom.js', array(), '1.2.0', true );
+		wp_localize_script( 'danket-plus-main-script', 'danketAjax', array(
+			'url' => admin_url( 'admin-ajax.php' ),
+		) );
 	}
 }
 add_action( 'wp_enqueue_scripts', 'danket_plus_scripts' );
@@ -58,32 +61,55 @@ add_shortcode('danket_contact_form', 'danket_contact_form_shortcode');
 function danket_contact_form_shortcode($atts) {
     $atts = shortcode_atts([
         'hide_file' => 'false',
-        'btn_text'  => 'Передать ТЗ на оценку'
+        'btn_text'  => 'Передать ТЗ на оценку',
+        'variant'   => 'full', // full | short
+        'source'    => ''
     ], $atts, 'danket_contact_form');
 
     $hide_file = filter_var($atts['hide_file'], FILTER_VALIDATE_BOOLEAN);
+    $is_short  = $atts['variant'] === 'short';
+    $uid       = wp_unique_id('cta-');
+    $source    = $atts['source'] ? $atts['source'] : ($is_short ? 'Короткая форма (попап)' : 'Форма на странице');
 
     ob_start();
     ?>
-    <form class="cta__form" action="#" method="post">
+    <form class="cta__form" action="#" method="post" novalidate>
+        <?php wp_nonce_field('danket_lead_nonce', 'danket_lead_nonce'); ?>
+        <input type="hidden" name="form_source" value="<?php echo esc_attr($source); ?>">
+        <input type="hidden" name="page_url" value="<?php echo esc_url(home_url(add_query_arg(null, null))); ?>">
+
+        <?php if ($is_short) : ?>
+        <div class="cta__field--full">
+            <label class="cta__label" for="<?php echo esc_attr($uid); ?>-name">Имя</label>
+            <input class="cta__input" id="<?php echo esc_attr($uid); ?>-name" type="text" name="name" placeholder="" required>
+        </div>
+        <div class="cta__field--full">
+            <label class="cta__label" for="<?php echo esc_attr($uid); ?>-phone">Номер телефона</label>
+            <input class="cta__input" id="<?php echo esc_attr($uid); ?>-phone" type="text" name="phone" placeholder="" required>
+        </div>
+        <div class="cta__field--full">
+            <label class="cta__label" for="<?php echo esc_attr($uid); ?>-comment">Комментарий</label>
+            <textarea class="cta__textarea" id="<?php echo esc_attr($uid); ?>-comment" name="comment" rows="3" placeholder="Кратко опишите задачу"></textarea>
+        </div>
+        <?php else : ?>
         <div class="cta__fields">
             <div class="cta__field">
-                <label class="cta__label" for="ctaName">Имя</label>
-                <input class="cta__input" id="ctaName" type="text" name="name" placeholder="" required>
+                <label class="cta__label" for="<?php echo esc_attr($uid); ?>-name">Имя</label>
+                <input class="cta__input" id="<?php echo esc_attr($uid); ?>-name" type="text" name="name" placeholder="" required>
             </div>
             <div class="cta__field">
-                <label class="cta__label" for="ctaCompany">Компания</label>
-                <input class="cta__input" id="ctaCompany" type="text" name="company" placeholder="" required>
+                <label class="cta__label" for="<?php echo esc_attr($uid); ?>-company">Компания</label>
+                <input class="cta__input" id="<?php echo esc_attr($uid); ?>-company" type="text" name="company" placeholder="" required>
             </div>
         </div>
         <div class="cta__field--full">
-            <label class="cta__label" for="ctaPhone">Номер телефона</label>
-            <input class="cta__input" id="ctaPhone" type="text" name="phone" placeholder="" required>
+            <label class="cta__label" for="<?php echo esc_attr($uid); ?>-phone">Номер телефона</label>
+            <input class="cta__input" id="<?php echo esc_attr($uid); ?>-phone" type="text" name="phone" placeholder="" required>
         </div>
         <div class="cta__field--full">
-            <label class="cta__label" for="ctaService">Услуга</label>
+            <label class="cta__label" for="<?php echo esc_attr($uid); ?>-service">Услуга</label>
             <div class="cta__select-wrap">
-                <select class="cta__input cta__select" id="ctaService" name="service">
+                <select class="cta__input cta__select" id="<?php echo esc_attr($uid); ?>-service" name="service">
                     <option value="">Инженерные изыскания для проектирования</option>
                     <option>Утепление ППУ</option>
                     <option>Гидроизоляция полимочевиной</option>
@@ -92,23 +118,25 @@ function danket_contact_form_shortcode($atts) {
                 </select>
             </div>
         </div>
-        
+        <?php endif; ?>
+
         <?php if (!$hide_file) : ?>
         <div class="cta__field--full">
             <label class="cta__label">Техническое задание</label>
-            <label class="cta__file-label" for="ctaFile">
+            <label class="cta__file-label" for="<?php echo esc_attr($uid); ?>-file">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 9.5L9 17c-1.657 1.657-4.343 1.657-6 0-1.657-1.657-1.657-4.343 0-6l7-7c1.1-1.1 2.9-1.1 4 0 1.1 1.1 1.1 2.9 0 4L7 15c-.55.55-1.45.55-2 0-.55-.55-.55-1.45 0-2l6.5-6.5" stroke="#8B8FA8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>Нажмите, для загрузки файла</span>
-                <input type="file" id="ctaFile" name="tz" class="cta__file-input">
+                <input type="file" id="<?php echo esc_attr($uid); ?>-file" name="tz" class="cta__file-input">
             </label>
         </div>
         <?php endif; ?>
 
         <label class="cta__agree-label">
-            <input type="checkbox" class="cta__checkbox" name="agree">
+            <input type="checkbox" class="cta__checkbox" name="agree" required>
             <span class="cta__checkbox-custom"></span>
             <span class="cta__agree-text">Соглашаюсь с <a href="/pl/" target="_blank">политикой конфиденциальности</a> и даю согласие на <a href="/pd/" target="_blank">обработку персональных данных</a></span>
         </label>
+        <div class="cta__error" aria-live="polite"></div>
         <button class="cta__submit" type="submit"><?php echo esc_html($atts['btn_text']); ?></button>
     </form>
     <?php
@@ -220,6 +248,77 @@ function danket_render_object_card() {
         </div>
     </div>
     <?php
+}
+
+
+//**************Отправка заявки с cta__form (попап и большая форма)
+define('DANKET_LEAD_EMAIL', 'skidline2@ya.ru');
+
+add_action('wp_ajax_danket_submit_lead', 'danket_submit_lead');
+add_action('wp_ajax_nopriv_danket_submit_lead', 'danket_submit_lead');
+function danket_submit_lead() {
+    if (!isset($_POST['danket_lead_nonce']) || !wp_verify_nonce($_POST['danket_lead_nonce'], 'danket_lead_nonce')) {
+        wp_send_json_error(array('message' => 'Сессия устарела, обновите страницу и попробуйте снова.'));
+    }
+
+    $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
+    $phone = isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '';
+    $agree = isset($_POST['agree']);
+
+    if ($name === '' || $phone === '' || !$agree) {
+        wp_send_json_error(array('message' => 'Заполните имя, телефон и подтвердите согласие на обработку данных.'));
+    }
+
+    $company = isset($_POST['company']) ? sanitize_text_field($_POST['company']) : '';
+    $service = isset($_POST['service']) ? sanitize_text_field($_POST['service']) : '';
+    $comment = isset($_POST['comment']) ? sanitize_textarea_field($_POST['comment']) : '';
+    $source = isset($_POST['form_source']) ? sanitize_text_field($_POST['form_source']) : '';
+    $page_url = isset($_POST['page_url']) ? esc_url_raw($_POST['page_url']) : '';
+
+    $body = '<p><strong>Имя:</strong> ' . esc_html($name) . '</p>';
+    $body .= '<p><strong>Телефон:</strong> ' . esc_html($phone) . '</p>';
+    if ($company !== '') {
+        $body .= '<p><strong>Компания:</strong> ' . esc_html($company) . '</p>';
+    }
+    if ($service !== '') {
+        $body .= '<p><strong>Услуга:</strong> ' . esc_html($service) . '</p>';
+    }
+    if ($comment !== '') {
+        $body .= '<p><strong>Комментарий:</strong> ' . nl2br(esc_html($comment)) . '</p>';
+    }
+    if ($source !== '') {
+        $body .= '<p><strong>Источник:</strong> ' . esc_html($source) . '</p>';
+    }
+    if ($page_url !== '') {
+        $body .= '<p><strong>Страница:</strong> ' . esc_html($page_url) . '</p>';
+    }
+
+    $attachments = array();
+    if (!empty($_FILES['tz']['name'])) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        $uploaded = wp_handle_upload($_FILES['tz'], array('test_form' => false));
+        if (!empty($uploaded['file'])) {
+            $attachments[] = $uploaded['file'];
+            $body .= '<p><strong>Файл:</strong> ' . esc_html($_FILES['tz']['name']) . '</p>';
+        }
+    }
+
+    $subject = 'Новая заявка с сайта' . ($source ? ' — ' . $source : '');
+    $headers = array('Content-Type: text/html; charset=UTF-8');
+
+    $sent = wp_mail(DANKET_LEAD_EMAIL, $subject, $body, $headers, $attachments);
+
+    foreach ($attachments as $attachment_path) {
+        if (file_exists($attachment_path)) {
+            wp_delete_file($attachment_path);
+        }
+    }
+
+    if (!$sent) {
+        wp_send_json_error(array('message' => 'Не удалось отправить заявку. Попробуйте ещё раз или позвоните нам.'));
+    }
+
+    wp_send_json_success(array('redirect' => home_url('/spasibo/')));
 }
 
 

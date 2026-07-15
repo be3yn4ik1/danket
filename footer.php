@@ -94,6 +94,17 @@
         </div>
     </div>
 </footer>
+
+<div class="discuss-modal" id="discussModal">
+    <div class="discuss-modal__overlay" data-modal-close></div>
+    <div class="discuss-modal__inner">
+        <button class="discuss-modal__close" type="button" data-modal-close aria-label="Закрыть">&times;</button>
+        <h3 class="discuss-modal__title">Оставить заявку</h3>
+        <p class="discuss-modal__subtitle">Свяжемся с вами в течение 15 минут и предложим решение под ваш объект</p>
+        <?php echo do_shortcode('[danket_contact_form variant="short" btn_text="Оставить заявку" source="Попап"]'); ?>
+    </div>
+</div>
+
 <?php wp_footer(); ?>
 </body>
 </html>
