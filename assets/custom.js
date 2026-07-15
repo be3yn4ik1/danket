@@ -392,18 +392,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const fileInput = document.getElementById('ctaFile');
-    if (!fileInput) return;
+    document.querySelectorAll('.cta__file-input').forEach(fileInput => {
+        const fileLabel = fileInput.closest('.cta__file-label');
+        if (!fileLabel) return;
+        const fileText = fileLabel.querySelector('span');
+        const defaultText = fileText.textContent;
 
-    const fileLabel = fileInput.closest('.cta__file-label');
-    const fileText = fileLabel.querySelector('span');
-    const defaultText = fileText.textContent;
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                fileText.textContent = `${fileInput.files[0].name} - прикреплен`;
+            } else {
+                fileText.textContent = defaultText;
+            }
+        });
+    });
+});
 
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length > 0) {
-            fileText.textContent = `${fileInput.files[0].name} - прикреплен`;
-        } else {
-            fileText.textContent = defaultText;
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('discussModal');
+    if (!modal) return;
+
+    const openModal = (e) => {
+        e.preventDefault();
+        modal.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    };
+    const closeModal = () => {
+        modal.classList.remove('is-open');
+        document.body.style.overflow = '';
+    };
+
+    document.querySelectorAll('a[href="#discuss"]').forEach(trigger => {
+        trigger.addEventListener('click', openModal);
+    });
+    modal.querySelectorAll('[data-modal-close]').forEach(trigger => {
+        trigger.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof danketAjax === 'undefined') return;
+
+    document.querySelectorAll('.cta__form').forEach(form => {
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+
+            const submitBtn = form.querySelector('.cta__submit');
+            const errorEl = form.querySelector('.cta__error');
+            if (errorEl) errorEl.textContent = '';
+
+            const formData = new FormData(form);
+            formData.append('action', 'danket_submit_lead');
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.dataset.defaultText = submitBtn.dataset.defaultText || submitBtn.textContent;
+                submitBtn.textContent = 'Отправка...';
+            }
+
+            fetch(danketAjax.url, { method: 'POST', body: formData, credentials: 'same-origin' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.data && data.data.redirect) {
+                        window.location.href = data.data.redirect;
+                        return;
+                    }
+                    if (errorEl) errorEl.textContent = (data.data && data.data.message) || 'Не удалось отправить заявку. Попробуйте ещё раз.';
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = submitBtn.dataset.defaultText;
+                    }
+                })
+                .catch(() => {
+                    if (errorEl) errorEl.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = submitBtn.dataset.defaultText;
+                    }
+                });
+        });
     });
 });
